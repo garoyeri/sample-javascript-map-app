@@ -78,13 +78,35 @@
         maxZoom: 19,
         attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
       }).addTo(mymap);
+      
+      var markers = [];
 
+      // remove all the markers from the map and clear the array
+      function removeMarkers() {
+        markers.forEach(m => {
+          m.remove();
+        });
+        markers = [];
+      }
+
+      function addMarker(latitude, longitude) {
+        const newMarker = L.marker(L.latLng(latitude, longitude)).addTo(mymap);
+        markers.push(newMarker);
+      }
+
+      // search the map for an address
       function searchMap() {
         const location = mymap.getBounds();
-        fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=us&bounded=1&viewbox=${location.toBBoxString()}&street=${encodeURIComponent(document.getElementById('search').value)}`)
+        fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=us&bounded=1&viewbox=${location.toBBoxString()}&q=${encodeURIComponent(document.getElementById('search').value)}`)
           .then(r => r.json())
           .then(r => {
             console.log(r);
+            removeMarkers();
+            if (r) {
+              r.forEach(spot => {
+                addMarker(spot.lat, spot.lon);
+              })
+            }            
           })
           .catch(e => {
             console.log('error');
