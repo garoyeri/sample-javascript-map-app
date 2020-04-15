@@ -25,9 +25,9 @@
     <style>
       /* Always set the map height explicitly to define the size of the div
        * element that contains the map. */
-      #map {
-        height: 90%;
-      }
+      /* #map {
+        height: 100%;
+      } */
       /* Optional: Makes the sample page fill the window. */
       html, body {
         height: 100%;
@@ -37,13 +37,15 @@
     </style>
   </head>
   <body>
-    <div style="height: 100%">
-      <form class="form-inline mt-2" action="#" onsubmit="searchMap()">
-        <label for="search" class="mb-2 mr-2">Search:</label>
-        <input type="text" id="search" class="form-control mb-2 mr-sm-2" />
-        <button type="submit" class="btn btn-primary mb-2">Search</button>
-      </form>
-      <div id="map"></div>
+    <div class="d-flex flex-column min-vh-100">
+      <div class="">
+        <form class="form-inline ml-2 mt-2" action="#" onsubmit="searchMap()">
+          <label for="search" class="mb-2 mr-2">Search:</label>
+          <input type="text" id="search" class="form-control mb-2 mr-sm-2" />
+          <button type="submit" class="btn btn-primary mb-2">Search</button>
+        </form>
+      </div>
+      <div id="map" class="flex-grow-1"></div>
     </div>
 
     <!-- Use the nice default style of Bootstrap v4 -->
@@ -73,43 +75,80 @@
     </script>
 
     <script>
+      // create the map
       var mymap = L.map('map').setView([29.8435839,-94.8521422], 15);
+      // use the opernstreetmap tiles
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        // don't zoom higher than this
         maxZoom: 19,
+        // we need to add attribution when using this map data (part of the usage terms)
         attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
       }).addTo(mymap);
       
+      // an array to keep track of map markers, we need to remember them so we can clear them each time
       var markers = [];
 
-      // remove all the markers from the map and clear the array
+      /*
+        remove all the markers from the map and clear the array
+        Parameters: none
+        Returns: none
+      */
       function removeMarkers() {
         markers.forEach(m => {
+          // remove the marker from the map
           m.remove();
         });
+        // empty out the markers array
         markers = [];
       }
 
-      function addMarker(latitude, longitude) {
-        const newMarker = L.marker(L.latLng(latitude, longitude)).addTo(mymap);
+      /*
+        add a new marker to the map at the coordinates
+        Parameters:
+        * latitude: the latitude of the coordinate
+        * longitude: the longitude of the coordinate
+        * description: the description of the marker
+        Returns: none
+      */
+      function addMarker(latitude, longitude, description) {
+        // create a new marker with the given lat / long
+        const newMarker = L.marker(L.latLng(latitude, longitude))
+          .bindPopup(description)
+          .addTo(mymap);
+        // add the marker to the end of the array
         markers.push(newMarker);
       }
 
-      // search the map for an address
+      /*
+        Search the map for an address
+        Parameters: none
+        Returns: none
+      */
       function searchMap() {
+        // determine the coordinates that are displayed in the map right now
         const location = mymap.getBounds();
+
+        // search the open street map for the address in the USA, with the bounding box
         fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=us&bounded=1&viewbox=${location.toBBoxString()}&q=${encodeURIComponent(document.getElementById('search').value)}`)
-          .then(r => r.json())
+          .then(r => r.json())  // converts the successful response to JSON
           .then(r => {
+            // log the output to the console so we can see what it looks like
             console.log(r);
+            // remove all the markers from the map
             removeMarkers();
+            // if there's a valid response at this point (just a safety feature)
             if (r) {
+              // go through the response array
               r.forEach(spot => {
-                addMarker(spot.lat, spot.lon);
+                // add a marker to the map
+                addMarker(spot.lat, spot.lon, spot.display_name);
               })
             }            
           })
           .catch(e => {
+            // something went wrong
             console.log('error');
+            // just log it for now.
             console.log(e);
           });
       }
