@@ -15,45 +15,69 @@
     <!-- initialize the SDK after all desired features are loaded -->
     <script defer src="/__/firebase/init.js"></script>
 
-    <!-- Use the nice default style of Bootstrap v4 -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
-
-    <!-- Maps Initialization -->
+    <!-- Maps Initialization: https://leafletjs.com/examples/quick-start/ -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css" integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ==" crossorigin="">
     <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js" integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew==" crossorigin=""></script>
     
     <style>
-      /* Always set the map height explicitly to define the size of the div
-       * element that contains the map. */
-      /* #map {
-        height: 100%;
-      } */
-      /* Optional: Makes the sample page fill the window. */
+      /* set a default font */
+      html {
+        font-family: sans-serif;
+      }
+
+      /* the page should take up the entire height of the window, edge to edge */
       html, body {
         height: 100%;
         margin: 0;
         padding: 0;
       }
+
+      /* the map should grow to fix its container */
+      #map {
+        flex-grow: 1;
+      }
+
+      /* layout the components in the window vertically, taking up the entire height */
+      .mapcontainer {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+
+      /* set the form margins  */
+      .mapcontainer div form {
+        /* margin: top, right, bottom, left */
+        margin: 1em 0 1em 1em;
+        /* note: 'em' is the size of the letter 'm' in the current font */
+      }
+
+      /* space out all the components inside the mapcontainer form */
+      .mapcontainer form * {
+        margin-right: 0.5em;
+      }
     </style>
   </head>
   <body>
-    <div class="d-flex flex-column min-vh-100">
-      <div class="">
-        <form class="form-inline ml-2 mt-2" action="#" onsubmit="searchMap()">
-          <label for="search" class="mb-2 mr-2">Search:</label>
-          <input type="text" id="search" class="form-control mb-2 mr-sm-2" />
-          <button type="submit" class="btn btn-primary mb-2">Search</button>
+    <!-- the mapcontainer will hold the whole page layout -->
+    <div class="mapcontainer">
+      <div>
+        <!--
+          we don't want the form to reload the page, so we set the action
+          to "#" and override the onsubmit event
+        -->
+        <form action="#" onsubmit="searchMap()">
+          <label for="search">Search:</label>
+          <input type="text" id="search" />
+          <button type="submit">Search</button>
         </form>
       </div>
-      <div id="map" class="flex-grow-1"></div>
+      <div id="map"></div>
     </div>
 
-    <!-- Use the nice default style of Bootstrap v4 -->
-    <script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
-
-    <!-- Firebase initialization and useful functions, we'll use these later when setting up authentication and database -->
+    <!--
+      Firebase initialization and useful functions, we'll use these
+      later when setting up authentication and database
+    -->
     <script>
       document.addEventListener('DOMContentLoaded', function() {
         // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
@@ -74,16 +98,21 @@
       });
     </script>
 
+    <!-- map related JavaScript functions -->
     <script>
-      // create the map
-      var mymap = L.map('map').setView([29.8435839,-94.8521422], 15);
-      // use the opernstreetmap tiles
+      // create the map, default the location to Barbers Hill HS, zoom level 12
+      //  the 'map' here is the 'id' of the <div> that should contain the map
+      //  the library will then draw the map onto that <div> element
+      // you'll see the `L` character on its own, this is created by Leaflet (the map library)
+      var mymap = L.map('map').setView([29.8435839,-94.8521422], 12);
+
+      // use the OpenStreetMap tiles: https://leafletjs.com/
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        // don't zoom higher than this
+        // don't zoom higher (closer) than this
         maxZoom: 19,
         // we need to add attribution when using this map data (part of the usage terms)
         attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
-      }).addTo(mymap);
+      }).addTo(mymap);  // add it to the map
       
       // an array to keep track of map markers, we need to remember them so we can clear them each time
       var markers = [];
@@ -94,12 +123,14 @@
         Returns: none
       */
       function removeMarkers() {
+        // this is a Array.forEach syntax: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach
+        //  it lets you call a function against each element
         markers.forEach(m => {
           // remove the marker from the map
           m.remove();
         });
-        // empty out the markers array
-        markers = [];
+        // empty out the markers array by resetting it to an empty array
+        markers.length = 0;
       }
 
       /*
@@ -111,10 +142,13 @@
         Returns: none
       */
       function addMarker(latitude, longitude, description) {
-        // create a new marker with the given lat / long
+        // create a new marker with the given latitude / longitude
+        // marker(): https://leafletjs.com/reference-1.6.0.html#marker
+        // latLng(): https://leafletjs.com/reference-1.6.0.html#latlng
         const newMarker = L.marker(L.latLng(latitude, longitude))
-          .bindPopup(description)
-          .addTo(mymap);
+          .bindPopup(description) // make a popup that just shows the description
+          .addTo(mymap);  // add it to the map
+
         // add the marker to the end of the array
         markers.push(newMarker);
       }
@@ -129,8 +163,10 @@
         const location = mymap.getBounds();
 
         // search the open street map for the address in the USA, with the bounding box
+        // fetch(): https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+        // Nominatim Search: https://nominatim.org/release-docs/develop/api/Search/
         fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=us&bounded=1&viewbox=${location.toBBoxString()}&q=${encodeURIComponent(document.getElementById('search').value)}`)
-          .then(r => r.json())  // converts the successful response to JSON
+          .then(r => r.json())  // converts the successful response to JSON (returns a Promise)
           .then(r => {
             // log the output to the console so we can see what it looks like
             console.log(r);
@@ -141,15 +177,47 @@
               // go through the response array
               r.forEach(spot => {
                 // add a marker to the map
+                /*
+                  spot at this point will look like this (but not everything will be available):
+                  {
+                    "place_id": "100149",
+                    "licence": "Data © OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright",
+                    "osm_type": "node",
+                    "osm_id": "107775",
+                    "boundingbox": ["51.3473219", "51.6673219", "-0.2876474", "0.0323526"],
+                    "lat": "51.5073219",
+                    "lon": "-0.1276474",
+                    "display_name": "London, Greater London, England, SW1A 2DU, United Kingdom",
+                    "class": "place",
+                    "type": "city",
+                    "importance": 0.9654895765402,
+                    "icon": "https://nominatim.openstreetmap.org/images/mapicons/poi_place_city.p.20.png",
+                    "address": {
+                      "city": "London",
+                      "state_district": "Greater London",
+                      "state": "England",
+                      "postcode": "SW1A 2DU",
+                      "country": "United Kingdom",
+                      "country_code": "gb"
+                    },
+                    "extratags": {
+                      "capital": "yes",
+                      "website": "http://www.london.gov.uk",
+                      "wikidata": "Q84",
+                      "wikipedia": "en:London",
+                      "population": "8416535"
+                    }
+                  }
+                */
                 addMarker(spot.lat, spot.lon, spot.display_name);
               })
             }            
           })
-          .catch(e => {
-            // something went wrong
+          .catch(err => {
+            // something went wrong, `err` will have some error information
             console.log('error');
             // just log it for now.
-            console.log(e);
+            console.log(err);
           });
       }
     </script>
