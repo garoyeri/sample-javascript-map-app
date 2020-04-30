@@ -62,10 +62,12 @@
     <div class="mapcontainer">
       <div>
         <!--
-          we don't want the form to reload the page, so we set the action
-          to "#" and override the onsubmit event
+          we don't want the form to reload the page, so we pass the `event` here
+          then we use the `preventDefault()` function to stop it from reloading the
+          page.
+          https://stackoverflow.com/questions/16262797/html-form-action-and-onsubmit-issues
         -->
-        <form action="#" onsubmit="searchMap()">
+        <form onsubmit="searchMap(event)">
           <label for="search">Search:</label>
           <input type="text" id="search" />
           <button type="submit">Search</button>
@@ -158,7 +160,11 @@
         Parameters: none
         Returns: none
       */
-      function searchMap() {
+      function searchMap(e) {
+        // since we are using "onsubmit", we have to override the default behavior if it's called
+        //  otherwise, the page will get reloaded
+        if (e) e.preventDefault();
+
         // determine the coordinates that are displayed in the map right now
         const location = mymap.getBounds();
 
