@@ -194,25 +194,54 @@
           "Location";
         const markerId =
           e.target && e.target.options && e.target.options.markerId;
+
+        // find all the comments for this marker
+        const db = firebase.firestore();
+
+        if (markerId) {
+          db.collection("markers")
+            .doc(markerId)
+            .collection("comments")
+            .orderBy("timestamp", "desc")
+            .limit(5)
+            .get()
+            .then((snapshot) => {
+              const comments = [];
+              snapshot.forEach((doc) => {
+                comments.push({
+                  message: doc.data().message,
+                  timestamp: doc.data().timestamp,
+                });
+              });
+
+              showPopup(location, title, comments, markerId);
+            });
+        } else {
+          showPopup(location, title);
+        }
+      }
+
+      function showPopup(location, title, comments, markerId) {
+        comments = comments || [];
         // Create a new popup with a dynamically generated HTML component
         //  the `` string can stretch multiple lines of code and can be
         //  used with the ${} for substitutions
-        const popupComment = L.popup()
+        L.popup()
           .setContent(
             `
             <div style="width:200px; height: 200px;">
               <div>
                 <p>${title}</p>
                 <ul>
-                  <li>Comment</li>
+                  ${comments.map(c => `<li>${c.message}</li>`)}
                 </ul>
-                <button onClick="onAddComment(${e.latlng.lat}, ${e.latlng.lng}, ${markerId})">Add Comment</button>
+                <button onClick="onAddComment(${location.lat}, ${location.lng}, '${markerId}')">Add Comment</button>
               </div>
             </div>
           `
           )
           .setLatLng(location)
-          .openOn(mymap);
+          .openOn(mymap);        
       }
 
       function onAddComment(lat, lng, id) {
@@ -223,33 +252,27 @@
 
         // get the database helper object
         const db = firebase.firestore();
+        let prework = Promise.resolve({id: id});
 
-        if (id) {
-          // if a marker ID was passed, we already have a marker in the database
-          db.collection("markers")
-            .doc(id)
-            .collection("comments")
-            .add({
-              message: comment,
-              timestamp: new Date().toISOString(),
-            })
-            .then(() => alert("Saved!"));
-        } else {
+        if (!id) {
           // no marker ID, so it's a new one
-          db.collection("markers")
+          prework = db.collection("markers")
             .add({
               latitude: lat,
               longitude: lng,
               geohash: Geohash.encode(lat, lng, 9),
-              comments: [
-                {
-                  message: comment,
-                  timestamp: new Date().toISOString(),
-                },
-              ],
-            })
-            .then(() => alert("Saved!"));
+            });
         }
+
+        prework.then(newId => {
+          return db.collection("markers")
+            .doc(newId.id)
+            .collection("comments")
+            .add({
+              message: comment,
+              timestamp: new Date(),
+            });
+        }).then(() => alert("Saved!"));
       }
 
       function showComments() {
@@ -267,8 +290,6 @@
         const lowerHash = Geohash.encode(lower.lat, lower.lng, 9);
         const upperHash = Geohash.encode(upper.lat, upper.lng, 9);
 
-        removeMarkers();
-
         // get the database helper object
         const db = firebase.firestore();
         // find all the markers that are within our bounds
@@ -278,14 +299,11 @@
           .limit(100)
           .get()
           .then((querySnapshot) => {
+            removeMarkers();
+
             querySnapshot.forEach((marker) => {
               const data = marker.data();
-              addMarker(
-                data.latitude,
-                data.longitude,
-                "Location",
-                marker.id
-              );
+              addMarker(data.latitude, data.longitude, "Location", marker.id);
             });
           });
       }
