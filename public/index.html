@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Sample Map Application</title>
 
     <!-- update the version number as needed -->
@@ -14,9 +14,25 @@
     <script defer src="/__/firebase/init.js"></script>
 
     <!-- Maps Initialization: https://leafletjs.com/examples/quick-start/ -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css" integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ==" crossorigin="">
-    <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js" integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew==" crossorigin=""></script>
-    
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css"
+      integrity="sha512-xwE/Az9zrjBIphAcBb3F6JVqxf46+CDLwfLMHloNu6KEQCAWi6HcDUbeOfBIptF7tcCzusKFjFw2yuvEpDL9wQ=="
+      crossorigin=""
+    />
+    <script
+      src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"
+      integrity="sha512-gZwIG9x3wUXg2hdXF6+rVkLF/0Vi9U8D2Ntg4Ga5I5BZpVkVxlJWbSQtXPSiUTtC0TjtGOmxa1AJPuV0CPthew=="
+      crossorigin=""
+    ></script>
+
+    <!-- geohash (note, for browser support, we need v1.1.0, not 2.0.0) -->
+    <script
+      src="https://unpkg.com/latlon-geohash@1.1.0/latlon-geohash.js"
+      integrity="sha384-AheDVXvZ/hJ0JCdwRU6qC7j3oVoXtgSEI+dd9WDTZ+OrSr1nqNSmqlRKl2Nfz1fG"
+      crossorigin=""
+    ></script>
+
     <style>
       /* set a default font */
       html {
@@ -24,7 +40,8 @@
       }
 
       /* the page should take up the entire height of the window, edge to edge */
-      html, body {
+      html,
+      body {
         height: 100%;
         margin: 0;
         padding: 0;
@@ -69,6 +86,7 @@
           <label for="search">Search:</label>
           <input type="text" id="search" />
           <button type="submit">Search</button>
+          <button onClick="showComments()">Find All Comments</button>
         </form>
       </div>
       <div id="map"></div>
@@ -79,7 +97,7 @@
       later when setting up authentication and database
     -->
     <script>
-      document.addEventListener('DOMContentLoaded', function() {
+      document.addEventListener("DOMContentLoaded", function () {
         // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
         // // The Firebase SDK is initialized and available here!
         //
@@ -104,17 +122,19 @@
       //  the 'map' here is the 'id' of the <div> that should contain the map
       //  the library will then draw the map onto that <div> element
       // you'll see the `L` character on its own, this is created by Leaflet (the map library)
-      var mymap = L.map('map').setView([29.8435839,-94.8521422], 12)
+      var mymap = L.map("map")
+        .setView([29.8435839, -94.8521422], 12)
         .on("click", onMapClick);
 
       // use the OpenStreetMap tiles: https://leafletjs.com/
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         // don't zoom higher (closer) than this
         maxZoom: 19,
         // we need to add attribution when using this map data (part of the usage terms)
-        attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
-      }).addTo(mymap);  // add it to the map
-     
+        attribution:
+          '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+      }).addTo(mymap); // add it to the map
+
       // an array to keep track of map markers, we need to remember them so we can clear them each time
       var markers = [];
 
@@ -126,7 +146,7 @@
       function removeMarkers() {
         // this is a Array.forEach syntax: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach
         //  it lets you call a function against each element
-        markers.forEach(m => {
+        markers.forEach((m) => {
           // remove the marker from the map
           m.remove();
         });
@@ -142,13 +162,16 @@
         * description: the description of the marker
         Returns: none
       */
-      function addMarker(latitude, longitude, description) {
+      function addMarker(latitude, longitude, description, markerId) {
         // create a new marker with the given latitude / longitude
         // marker(): https://leafletjs.com/reference-1.6.0.html#marker
         // latLng(): https://leafletjs.com/reference-1.6.0.html#latlng
-        const newMarker = L.marker(L.latLng(latitude, longitude), { title: description })
+        const newMarker = L.marker(L.latLng(latitude, longitude), {
+          title: description,
+          markerId: markerId,
+        })
           .on("click", onMapClick)
-          .addTo(mymap);  // add it to the map
+          .addTo(mymap); // add it to the map
 
         // add the marker to the end of the array
         markers.push(newMarker);
@@ -164,25 +187,107 @@
         // the MouseEvent e contains a location of where it was clicked
         const location = e.latlng;
         // if the event has a "title", then it's a marker
-        // we can use this chaining to ensure that the target is there and 
+        // we can use this chaining to ensure that the target is there and
         //  has an options and the options has a title. Otherwise, use "Location"
-        const title = e.target && e.target.options && e.target.options.title || "Location";
+        const title =
+          (e.target && e.target.options && e.target.options.title) ||
+          "Location";
+        const markerId =
+          e.target && e.target.options && e.target.options.markerId;
         // Create a new popup with a dynamically generated HTML component
         //  the `` string can stretch multiple lines of code and can be
         //  used with the ${} for substitutions
         const popupComment = L.popup()
-          .setContent(`
+          .setContent(
+            `
             <div style="width:200px; height: 200px;">
               <div>
                 <p>${title}</p>
                 <ul>
                   <li>Comment</li>
                 </ul>
+                <button onClick="onAddComment(${e.latlng.lat}, ${e.latlng.lng}, ${markerId})">Add Comment</button>
               </div>
             </div>
-          `)
+          `
+          )
           .setLatLng(location)
           .openOn(mymap);
+      }
+
+      function onAddComment(lat, lng, id) {
+        const comment = prompt(
+          "What do you want to tell people about this place?"
+        );
+        if (!comment) return;
+
+        // get the database helper object
+        const db = firebase.firestore();
+
+        if (id) {
+          // if a marker ID was passed, we already have a marker in the database
+          db.collection("markers")
+            .doc(id)
+            .collection("comments")
+            .add({
+              message: comment,
+              timestamp: new Date().toISOString(),
+            })
+            .then(() => alert("Saved!"));
+        } else {
+          // no marker ID, so it's a new one
+          db.collection("markers")
+            .add({
+              latitude: lat,
+              longitude: lng,
+              geohash: Geohash.encode(lat, lng, 9),
+              comments: [
+                {
+                  message: comment,
+                  timestamp: new Date().toISOString(),
+                },
+              ],
+            })
+            .then(() => alert("Saved!"));
+        }
+      }
+
+      function showComments() {
+        const zoomLevel = mymap.getZoom();
+
+        // set some limits
+        if (zoomLevel < 10) {
+          alert("Zoomed out too far");
+          return;
+        }
+
+        const bounds = mymap.getBounds();
+        const lower = bounds.getSouthWest();
+        const upper = bounds.getNorthEast();
+        const lowerHash = Geohash.encode(lower.lat, lower.lng, 9);
+        const upperHash = Geohash.encode(upper.lat, upper.lng, 9);
+
+        removeMarkers();
+
+        // get the database helper object
+        const db = firebase.firestore();
+        // find all the markers that are within our bounds
+        db.collection("markers")
+          .where("geohash", ">=", lowerHash)
+          .where("geohash", "<=", upperHash)
+          .limit(100)
+          .get()
+          .then((querySnapshot) => {
+            querySnapshot.forEach((marker) => {
+              const data = marker.data();
+              addMarker(
+                data.latitude,
+                data.longitude,
+                "Location",
+                marker.id
+              );
+            });
+          });
       }
 
       /*
@@ -201,9 +306,13 @@
         // search the open street map for the address in the USA, with the bounding box
         // fetch(): https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
         // Nominatim Search: https://nominatim.org/release-docs/develop/api/Search/
-        fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=us&bounded=1&viewbox=${location.toBBoxString()}&q=${encodeURIComponent(document.getElementById('search').value)}`)
-          .then(r => r.json())  // converts the successful response to JSON (returns a Promise)
-          .then(r => {
+        fetch(
+          `https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=us&bounded=1&viewbox=${location.toBBoxString()}&q=${encodeURIComponent(
+            document.getElementById("search").value
+          )}`
+        )
+          .then((r) => r.json()) // converts the successful response to JSON (returns a Promise)
+          .then((r) => {
             // log the output to the console so we can see what it looks like
             console.log(r);
             // remove all the markers from the map
@@ -211,7 +320,7 @@
             // if there's a valid response at this point (just a safety feature)
             if (r) {
               // go through the response array
-              r.forEach(spot => {
+              r.forEach((spot) => {
                 // add a marker to the map
                 /*
                   spot at this point will look like this (but not everything will be available):
@@ -246,12 +355,12 @@
                   }
                 */
                 addMarker(spot.lat, spot.lon, spot.display_name);
-              })
-            }            
+              });
+            }
           })
-          .catch(err => {
+          .catch((err) => {
             // something went wrong, `err` will have some error information
-            console.log('error');
+            console.log("error");
             // just log it for now.
             console.log(err);
           });
