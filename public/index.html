@@ -10,9 +10,6 @@
     <script defer src="/__/firebase/7.14.2/firebase-firestore.js"></script>
     <!-- include only the Firebase features as you need -->
     <!-- <script defer src="/__/firebase/7.14.0/firebase-auth.js"></script> -->
-    <!-- <script defer src="/__/firebase/7.14.0/firebase-database.js"></script> -->
-    <!-- <script defer src="/__/firebase/7.14.0/firebase-messaging.js"></script> -->
-    <!-- <script defer src="/__/firebase/7.14.0/firebase-storage.js"></script> -->
     <!-- initialize the SDK after all desired features are loaded -->
     <script defer src="/__/firebase/init.js"></script>
 
@@ -107,7 +104,8 @@
       //  the 'map' here is the 'id' of the <div> that should contain the map
       //  the library will then draw the map onto that <div> element
       // you'll see the `L` character on its own, this is created by Leaflet (the map library)
-      var mymap = L.map('map').setView([29.8435839,-94.8521422], 12);
+      var mymap = L.map('map').setView([29.8435839,-94.8521422], 12)
+        .on("click", onMapClick);
 
       // use the OpenStreetMap tiles: https://leafletjs.com/
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -116,7 +114,7 @@
         // we need to add attribution when using this map data (part of the usage terms)
         attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
       }).addTo(mymap);  // add it to the map
-      
+     
       // an array to keep track of map markers, we need to remember them so we can clear them each time
       var markers = [];
 
@@ -148,12 +146,43 @@
         // create a new marker with the given latitude / longitude
         // marker(): https://leafletjs.com/reference-1.6.0.html#marker
         // latLng(): https://leafletjs.com/reference-1.6.0.html#latlng
-        const newMarker = L.marker(L.latLng(latitude, longitude))
-          .bindPopup(description) // make a popup that just shows the description
+        const newMarker = L.marker(L.latLng(latitude, longitude), { title: description })
+          .on("click", onMapClick)
           .addTo(mymap);  // add it to the map
 
         // add the marker to the end of the array
         markers.push(newMarker);
+      }
+
+      /*
+        Show a popup when the map is clicked on a marker or random location
+        Parameters:
+        * e: MouseEvent https://leafletjs.com/reference-1.6.0.html#mouseevent
+        Returns: none
+      */
+      function onMapClick(e) {
+        // the MouseEvent e contains a location of where it was clicked
+        const location = e.latlng;
+        // if the event has a "title", then it's a marker
+        // we can use this chaining to ensure that the target is there and 
+        //  has an options and the options has a title. Otherwise, use "Location"
+        const title = e.target && e.target.options && e.target.options.title || "Location";
+        // Create a new popup with a dynamically generated HTML component
+        //  the `` string can stretch multiple lines of code and can be
+        //  used with the ${} for substitutions
+        const popupComment = L.popup()
+          .setContent(`
+            <div style="width:200px; height: 200px;">
+              <div>
+                <p>${title}</p>
+                <ul>
+                  <li>Comment</li>
+                </ul>
+              </div>
+            </div>
+          `)
+          .setLatLng(location)
+          .openOn(mymap);
       }
 
       /*
