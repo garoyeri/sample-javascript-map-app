@@ -70,6 +70,15 @@
       .mapcontainer form * {
         margin-right: 0.5em;
       }
+
+      .map-popup-block ul {
+        padding-inline-start: 1.5em;
+        margin-top: 0;
+      }
+      
+      .map-popup-block p {
+        margin-bottom: 0;
+      }
     </style>
   </head>
   <body>
@@ -243,6 +252,8 @@
        */
       function showPopup(location, title, comments, markerId) {
         comments = comments || [];
+        comments = comments.map((c) => `<li>${c.message}</li>`);
+
         // Create a new popup with a dynamically generated HTML component
         //  the `` string can stretch multiple lines of code and can be
         //  used with the ${} for substitutions
@@ -250,10 +261,10 @@
           .setContent(
             `
             <div style="width:200px; height: 200px;">
-              <div>
+              <div class="map-popup-block">
                 <p>${title}</p>
                 <ul>
-                  ${comments.map((c) => `<li>${c.message}</li>`)}
+                  ${comments.join("\n")}
                 </ul>
                 <button onClick="addComment(${location.lat}, ${location.lng} ${markerId ? `, '${markerId}'` : "" })">
                   Add Comment
@@ -289,7 +300,11 @@
         const operation = id
           ? addCommentToMarker(id, comment) // if the ID is valid, just add a comment to the marker
           : addMarker(latitude, longitude)  // if the ID was not valid, create a new marker, then add a comment
-              .then((newMarker) => addCommentToMarker(newMarker.id, comment));
+              .then((newMarker) => {
+                // since we added a new marker, make sure it shows up on the map
+                addMarkerToMap(latitude, longitude, "Location", newMarker.id);
+                return addCommentToMarker(newMarker.id, comment)
+              });
 
         // we don't have to chain the promise immediately, we can wait and do it later (like here)
         operation.then((newComment) => {
