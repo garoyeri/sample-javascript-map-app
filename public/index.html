@@ -252,7 +252,7 @@
        */
       function showPopup(location, title, comments, markerId) {
         comments = comments || [];
-        comments = comments.map((c) => `<li>${c.message}</li>`);
+        comments = comments.map((c) => `<li>${cleanText(c.message)}</li>`);
 
         // Create a new popup with a dynamically generated HTML component
         //  the `` string can stretch multiple lines of code and can be
@@ -275,6 +275,18 @@
           )
           .setLatLng(location)
           .openOn(mymap);
+      }
+
+      /**
+       * Clean up text to remove HTML tags
+       * @param {string} text - the text to clean
+       * @return {string} - the cleaned string
+       */
+      function cleanText(text) {
+        return text
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
       }
 
       /**
