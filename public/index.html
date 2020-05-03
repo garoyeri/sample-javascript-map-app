@@ -110,6 +110,8 @@
 
         try {
           let app = firebase.app();
+
+          showComments();
         } catch (e) {
           console.error(e);
         }
@@ -138,11 +140,9 @@
       // an array to keep track of map markers, we need to remember them so we can clear them each time
       var markers = [];
 
-      /*
-        remove all the markers from the map and clear the array
-        Parameters: none
-        Returns: none
-      */
+      /**
+       * remove all the markers from the map and clear the array
+       */
       function removeMarkers() {
         // this is a Array.forEach syntax: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach
         //  it lets you call a function against each element
@@ -154,15 +154,13 @@
         markers.length = 0;
       }
 
-      /*
-        add a new marker to the map at the coordinates
-        Parameters:
-        * latitude: the latitude of the coordinate
-        * longitude: the longitude of the coordinate
-        * description: the description of the marker
-        Returns: none
-      */
-      function addMarker(latitude, longitude, description, markerId) {
+      /**
+       * add a new marker to the map at the coordinates
+       * @param {number} latitude - the latitude of the coordinate
+       * @param {number} longitude - the longitude of the coordinate
+       * @param {string} description - the description of the marker
+       */
+      function addMarkerToMap(latitude, longitude, description, markerId) {
         // create a new marker with the given latitude / longitude
         // marker(): https://leafletjs.com/reference-1.6.0.html#marker
         // latLng(): https://leafletjs.com/reference-1.6.0.html#latlng
@@ -177,12 +175,11 @@
         markers.push(newMarker);
       }
 
-      /*
-        Show a popup when the map is clicked on a marker or random location
-        Parameters:
-        * e: MouseEvent https://leafletjs.com/reference-1.6.0.html#mouseevent
-        Returns: none
-      */
+      /**
+       * Show a popup when the map is clicked on a marker or random location
+       *
+       * @param {MouseEvent} e - https://leafletjs.com/reference-1.6.0.html#mouseevent
+       */
       function onMapClick(e) {
         // the MouseEvent e contains a location of where it was clicked
         const location = e.latlng;
@@ -195,32 +192,55 @@
         const markerId =
           e.target && e.target.options && e.target.options.markerId;
 
-        // find all the comments for this marker
-        const db = firebase.firestore();
-
+        // if a marker was passed, fetch the comments for that marker and show the data
         if (markerId) {
-          db.collection("markers")
-            .doc(markerId)
-            .collection("comments")
-            .orderBy("timestamp", "desc")
-            .limit(5)
-            .get()
-            .then((snapshot) => {
-              const comments = [];
-              snapshot.forEach((doc) => {
-                comments.push({
-                  message: doc.data().message,
-                  timestamp: doc.data().timestamp,
-                });
-              });
-
-              showPopup(location, title, comments, markerId);
-            });
+          getComments(markerId).then((comments) =>
+            showPopup(location, title, comments, markerId)
+          );
         } else {
+          // since no marker ID was passed, assume it's a new location and don't check the database
           showPopup(location, title);
         }
       }
 
+      /**
+       * Get the comments for the marker from the data store
+       *
+       * @param {string} id - the marker ID whose top 5 comments to fetch
+       * @return {Promise} - a Promise that resolves to the array of comment strings
+       */
+      function getComments(id) {
+        // find all the comments for this marker
+        const db = firebase.firestore();
+
+        return db
+          .collection("markers")
+          .doc(id)
+          .collection("comments")
+          .orderBy("timestamp", "desc")
+          .limit(5)
+          .get()
+          .then((snapshot) => {
+            const comments = [];
+            snapshot.forEach((doc) => {
+              comments.push({
+                message: doc.data().message,
+                timestamp: doc.data().timestamp,
+              });
+            });
+
+            return comments;
+          });
+      }
+
+      /**
+       * Show a location popup with the given location, title, comments, and marker
+       *
+       * @param {LatLng} location - the Leaflet LatLng for the target
+       * @param {string} title - the title for the location box
+       * @param {Array} comments - the list of comments to show
+       * @param {string} [markerId] - the optional marker ID (if available)
+       */
       function showPopup(location, title, comments, markerId) {
         comments = comments || [];
         // Create a new popup with a dynamically generated HTML component
@@ -233,18 +253,29 @@
               <div>
                 <p>${title}</p>
                 <ul>
-                  ${comments.map(c => `<li>${c.message}</li>`)}
+                  ${comments.map((c) => `<li>${c.message}</li>`)}
                 </ul>
-                <button onClick="onAddComment(${location.lat}, ${location.lng}, '${markerId}')">Add Comment</button>
+                <button onClick="addComment(${location.lat}, ${location.lng} ${markerId ? `, '${markerId}'` : "" })">
+                  Add Comment
+                </button>
               </div>
             </div>
           `
           )
           .setLatLng(location)
-          .openOn(mymap);        
+          .openOn(mymap);
       }
 
-      function onAddComment(lat, lng, id) {
+      /**
+       * Add a comment to the specified point on the map. If the marker ID is passed
+       * as `id`, then the comment will be added to that marker. Otherwise a new marker
+       * will be created.
+       *
+       * @param {number} latitude - the latitude of the point
+       * @param {number} longitude - the longitude of the point
+       * @param {string} [id] - optional marker ID if one is available
+       */
+      function addComment(latitude, longitude, id) {
         const comment = prompt(
           "What do you want to tell people about this place?"
         );
@@ -252,34 +283,71 @@
 
         // get the database helper object
         const db = firebase.firestore();
-        let prework = Promise.resolve({id: id});
 
-        if (!id) {
-          // no marker ID, so it's a new one
-          prework = db.collection("markers")
-            .add({
-              latitude: lat,
-              longitude: lng,
-              geohash: Geohash.encode(lat, lng, 9),
-            });
-        }
+        // this uses the "ternary opertator" or ? : to execute one path or the other.
+        //  it's useful to reduce the need for a separate if / else block
+        const operation = id
+          ? addCommentToMarker(id, comment) // if the ID is valid, just add a comment to the marker
+          : addMarker(latitude, longitude)  // if the ID was not valid, create a new marker, then add a comment
+              .then((newMarker) => addCommentToMarker(newMarker.id, comment));
 
-        prework.then(newId => {
-          return db.collection("markers")
-            .doc(newId.id)
-            .collection("comments")
-            .add({
-              message: comment,
-              timestamp: new Date(),
-            });
-        }).then(() => alert("Saved!"));
+        // we don't have to chain the promise immediately, we can wait and do it later (like here)
+        operation.then((newComment) => {
+          // comment parent is collection of comments, then its parent is the marker
+          const markerId = newComment.parent.parent.id;
+
+          getComments(markerId)
+            .then((comments) => showPopup(
+              { lat: latitude, lng: longitude }, // make an object that smells like a Leaflet LatLng
+              "Location", // TODO: maybe do something better than this for location names?
+              comments,
+              markerId
+            ));
+        });
       }
 
+      /**
+       * Add a marker to the data store
+       *
+       * @param {number} latitude - the latitude of the point to add a marker
+       * @param {number} longitude - the longitude of the point to add a marker
+       */
+      function addMarker(latitude, longitude) {
+        // get the database helper object
+        const db = firebase.firestore();
+
+        return db.collection("markers").add({
+          latitude,
+          longitude,
+          geohash: Geohash.encode(latitude, longitude, 9),
+        });
+      }
+
+      /**
+       * Add a comment to an existing marker.
+       *
+       * @param {string} id - the marker ID to add a comment to
+       * @param {string} comment - the comment to be added
+       * @returns {Promise} - resolves when the comment is saved to the database
+       */
+      function addCommentToMarker(id, comment) {
+        // get the database helper object
+        const db = firebase.firestore();
+
+        return db.collection("markers").doc(id).collection("comments").add({
+          message: comment,
+          timestamp: new Date(),
+        });
+      }
+
+      /**
+       * Find and show markers in the map area that have comments
+       */
       function showComments() {
         const zoomLevel = mymap.getZoom();
 
         // set some limits
-        if (zoomLevel < 10) {
+        if (zoomLevel < 9) {
           alert("Zoomed out too far");
           return;
         }
@@ -303,16 +371,20 @@
 
             querySnapshot.forEach((marker) => {
               const data = marker.data();
-              addMarker(data.latitude, data.longitude, "Location", marker.id);
+              addMarkerToMap(
+                data.latitude,
+                data.longitude,
+                "Location",
+                marker.id
+              );
             });
           });
       }
 
-      /*
-        Search the map for an address
-        Parameters: none
-        Returns: none
-      */
+      /**
+       * Search the map for an address
+       * @param {SubmitEvent} - the form submission of the search box
+       */
       function searchMap(e) {
         // since we are using "onsubmit", we have to override the default behavior if it's called
         //  otherwise, the page will get reloaded
@@ -372,7 +444,7 @@
                     }
                   }
                 */
-                addMarker(spot.lat, spot.lon, spot.display_name);
+                addMarkerToMap(spot.lat, spot.lon, spot.display_name);
               });
             }
           })
