@@ -444,9 +444,15 @@
           });
       }
 
-      function editComment(markerId, commentId) {
+      /**
+       * Edit the specified comment (prompt first)
+       * @param {string} markerId - the marker whose comment to edit
+       * @param {string} commentId - the comment ID to edit
+       */
+       function editComment(markerId, commentId) {
         const db = firebase.firestore();
 
+        // first get the comment to have the original text
         db.collection("markers")
           .doc(markerId)
           .collection("comments")
@@ -476,6 +482,11 @@
           });
       }
 
+      /**
+       * Delete the specified comment (prompt first)
+       * @param {string} markerId - the marker whose comment to delete
+       * @param {string} commentId - the comment ID to delete
+       */
       function deleteComment(markerId, commentId) {
         const result = confirm("Delete this comment?");
         if (!result) return;
@@ -595,13 +606,16 @@
       let provider;
 
       /**
-        Sign in using your Google account (if not already signed in)
+       * Sign in using your Google account (if not already signed in)
       */
       function signIn() {
         // sign in using a redirect (instead of a popup)
         firebase.auth().signInWithRedirect(provider);
       }
 
+      /**
+       * Sign out of your account (if signed in)
+      */
       function signOut() {
         return firebase
           .auth()
@@ -609,6 +623,10 @@
           .then(() => alert("Signed Out!"));
       }
 
+      /**
+       * Listen for changes to the authentication state (i.e. when the page is redirected)
+       * @param {Object} user - the user object when the authentication state is changed
+       */
       function onAuthStateChanged(user) {
         if (user) {
           // User is signed in
