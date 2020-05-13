@@ -6,10 +6,9 @@
     <title>Sample Map Application</title>
 
     <!-- update the version number as needed -->
-    <script defer src="/__/firebase/7.14.2/firebase-app.js"></script>
-    <script defer src="/__/firebase/7.14.2/firebase-firestore.js"></script>
-    <!-- include only the Firebase features as you need -->
-    <!-- <script defer src="/__/firebase/7.14.0/firebase-auth.js"></script> -->
+    <script defer src="/__/firebase/7.14.3/firebase-app.js"></script>
+    <script defer src="/__/firebase/7.14.3/firebase-firestore.js"></script>
+    <script defer src="/__/firebase/7.14.3/firebase-auth.js"></script>
     <!-- initialize the SDK after all desired features are loaded -->
     <script defer src="/__/firebase/init.js"></script>
 
@@ -75,9 +74,17 @@
         padding-inline-start: 1.5em;
         margin-top: 0;
       }
-      
+
       .map-popup-block p {
         margin-bottom: 0;
+      }
+
+      #signInButton {
+        display: inline;
+      }
+
+      #signOutButton {
+        display: none;
       }
     </style>
   </head>
@@ -95,7 +102,10 @@
           <label for="search">Search:</label>
           <input type="text" id="search" />
           <button type="submit">Search</button>
-          <button onClick="showComments()">Find All Comments</button>
+          <button onclick="showComments()">Find All Comments</button>
+          <button id="signInButton" onclick="signIn()">Sign In</button>
+          <button id="signOutButton" onclick="signOut()">Sign Out</button>
+          <span id="userEmail"></span>
         </form>
       </div>
       <div id="map"></div>
@@ -119,6 +129,12 @@
 
         try {
           let app = firebase.app();
+
+          // listen for changes to the signed in state of the user
+          firebase.auth().onAuthStateChanged(onAuthStateChanged);
+
+          // create a new Google authentication provider
+          provider = new firebase.auth.GoogleAuthProvider();
 
           showComments();
         } catch (e) {
@@ -266,7 +282,9 @@
                 <ul>
                   ${comments.join("\n")}
                 </ul>
-                <button onClick="addComment(${location.lat}, ${location.lng} ${markerId ? `, '${markerId}'` : "" })">
+                <button onClick="addComment(${location.lat}, ${location.lng} ${
+              markerId ? `, '${markerId}'` : ""
+            })">
                   Add Comment
                 </button>
               </div>
@@ -284,9 +302,9 @@
        */
       function cleanText(text) {
         return text
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;');
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
       }
 
       /**
@@ -311,11 +329,11 @@
         //  it's useful to reduce the need for a separate if / else block
         const operation = id
           ? addCommentToMarker(id, comment) // if the ID is valid, just add a comment to the marker
-          : addMarker(latitude, longitude)  // if the ID was not valid, create a new marker, then add a comment
+          : addMarker(latitude, longitude) // if the ID was not valid, create a new marker, then add a comment
               .then((newMarker) => {
                 // since we added a new marker, make sure it shows up on the map
                 addMarkerToMap(latitude, longitude, "Location", newMarker.id);
-                return addCommentToMarker(newMarker.id, comment)
+                return addCommentToMarker(newMarker.id, comment);
               });
 
         // we don't have to chain the promise immediately, we can wait and do it later (like here)
@@ -323,13 +341,14 @@
           // comment parent is collection of comments, then its parent is the marker
           const markerId = newComment.parent.parent.id;
 
-          getComments(markerId)
-            .then((comments) => showPopup(
+          getComments(markerId).then((comments) =>
+            showPopup(
               { lat: latitude, lng: longitude }, // make an object that smells like a Leaflet LatLng
               "Location", // TODO: maybe do something better than this for location names?
               comments,
               markerId
-            ));
+            )
+          );
         });
       }
 
@@ -481,6 +500,39 @@
             // just log it for now.
             console.log(err);
           });
+      }
+
+      // Authentication Scripts
+
+      let provider;
+
+      /**
+        Sign in using your Google account (if not already signed in)
+      */
+      function signIn() {
+        // sign in using a redirect (instead of a popup)
+        firebase.auth().signInWithRedirect(provider);
+      }
+
+      function signOut() {
+        return firebase
+          .auth()
+          .signOut()
+          .then(() => alert("Signed Out!"));
+      }
+
+      function onAuthStateChanged(user) {
+        if (user) {
+          // User is signed in
+          document.getElementById("signInButton").style.display = "none";
+          document.getElementById("signOutButton").style.display = "inline";
+          document.getElementById("userEmail").textContent = `${user.displayName} (${user.email})`;
+        } else {
+          // User is not signed in
+          document.getElementById("signInButton").style.display = "inline";
+          document.getElementById("signOutButton").style.display = "none";
+          document.getElementById("userEmail").textContent = '';
+        }
       }
     </script>
   </body>
