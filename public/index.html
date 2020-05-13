@@ -59,14 +59,14 @@
       }
 
       /* set the form margins  */
-      .mapcontainer div form {
+      #controls {
         /* margin: top, right, bottom, left */
         margin: 1em 0 1em 1em;
         /* note: 'em' is the size of the letter 'm' in the current font */
       }
 
       /* space out all the components inside the mapcontainer form */
-      .mapcontainer form * {
+      #controls * {
         margin-right: 0.5em;
       }
 
@@ -91,22 +91,20 @@
   <body>
     <!-- the mapcontainer will hold the whole page layout -->
     <div class="mapcontainer">
-      <div>
+      <div id="controls">
         <!--
           we don't want the form to reload the page, so we pass the `event` here
           then we use the `preventDefault()` function to stop it from reloading the
           page.
           https://stackoverflow.com/questions/16262797/html-form-action-and-onsubmit-issues
         -->
-        <form onsubmit="searchMap(event)">
-          <label for="search">Search:</label>
-          <input type="text" id="search" />
-          <button type="submit">Search</button>
-          <button onclick="showComments()">Find All Comments</button>
-          <button id="signInButton" onclick="signIn()">Sign In</button>
-          <button id="signOutButton" onclick="signOut()">Sign Out</button>
-          <span id="userEmail"></span>
-        </form>
+        <label for="search">Search:</label>
+        <input type="text" id="search" />
+        <button onclick="searchMap()">Search</button>
+        <button onclick="showComments()">Find All Comments</button>
+        <button id="signInButton" onclick="signIn()">Sign In</button>
+        <button id="signOutButton" onclick="signOut()">Sign Out</button>
+        <span id="userEmail"></span>
       </div>
       <div id="map"></div>
     </div>
@@ -249,8 +247,10 @@
             const comments = [];
             snapshot.forEach((doc) => {
               comments.push({
+                id: doc.id,
                 message: doc.data().message,
                 timestamp: doc.data().timestamp,
+                userid: doc.data().userid,
               });
             });
 
@@ -267,8 +267,24 @@
        * @param {string} [markerId] - the optional marker ID (if available)
        */
       function showPopup(location, title, comments, markerId) {
+        const user = firebase.auth().currentUser;
         comments = comments || [];
-        comments = comments.map((c) => `<li>${cleanText(c.message)}</li>`);
+        comments = comments.map(
+          (c) => `
+          <li>
+            ${cleanText(c.message)}${" "}
+            ${
+              (user &&
+                c.userid === user.uid &&
+                `<br />
+              <button onClick="editComment('${markerId}', '${c.id}')">Edit</button>
+              <button onClick="deleteComment('${markerId}', '${c.id}')">Delete</button>
+              `) ||
+              ""
+            }
+          </li>
+        `
+        );
 
         // Create a new popup with a dynamically generated HTML component
         //  the `` string can stretch multiple lines of code and can be
@@ -346,15 +362,7 @@
         operation.then((newComment) => {
           // comment parent is collection of comments, then its parent is the marker
           const markerId = newComment.parent.parent.id;
-
-          getComments(markerId).then((comments) =>
-            showPopup(
-              { lat: latitude, lng: longitude }, // make an object that smells like a Leaflet LatLng
-              "Location", // TODO: maybe do something better than this for location names?
-              comments,
-              markerId
-            )
-          );
+          showPopupForMarker(markerId);
         });
       }
 
@@ -386,12 +394,12 @@
         // get the database helper object
         const db = firebase.firestore();
         const user = firebase.auth().currentUser;
-        if (!user) return;        
+        if (!user) return;
 
         return db.collection("markers").doc(id).collection("comments").add({
           message: comment,
           timestamp: new Date(),
-          userid: user.uid
+          userid: user.uid,
         });
       }
 
@@ -433,6 +441,76 @@
                 marker.id
               );
             });
+          });
+      }
+
+      function editComment(markerId, commentId) {
+        const db = firebase.firestore();
+
+        db.collection("markers")
+          .doc(markerId)
+          .collection("comments")
+          .doc(commentId)
+          .get()
+          .then((comment) => {
+            // ask for a new comment (old comment as default text)
+            const newComment = prompt(
+              "Edit Comment:",
+              comment.data().message || ""
+            );
+            if (!newComment) return;
+
+            // use the document reference to chain an "update" command
+            comment.ref
+              .update({
+                message: newComment,
+                timestamp: new Date(),
+              })
+              .then(() => {
+                showPopupForMarker(markerId);
+              })
+              .catch((err) => {
+                console.log("Could not update comment", err);
+                alert("Could not edit comment for some reason");
+              });
+          });
+      }
+
+      function deleteComment(markerId, commentId) {
+        const result = confirm("Delete this comment?");
+        if (!result) return;
+
+        const db = firebase.firestore();
+
+        db.collection("markers")
+          .doc(markerId)
+          .collection("comments")
+          .doc(commentId)
+          .delete()
+          .then(() => {
+            showPopupForMarker(markerId);
+          })
+          .catch((err) => {
+            console.log("Could not delete comment", err);
+            alert("Could not delete comment for some reason");
+          });
+      }
+
+      function showPopupForMarker(markerId) {
+        const db = firebase.firestore();
+
+        db.collection("markers")
+          .doc(markerId)
+          .get()
+          .then((marker) => {
+            getComments(markerId).then((comments) =>
+              showPopup(
+                { lat: marker.data().latitude, lng: marker.data().longitude }, // make an object that smells like a Leaflet LatLng
+                "Location", // TODO: maybe do something better than this for location names?
+                comments,
+                markerId
+              )
+            );
           });
       }
 
@@ -536,12 +614,14 @@
           // User is signed in
           document.getElementById("signInButton").style.display = "none";
           document.getElementById("signOutButton").style.display = "inline";
-          document.getElementById("userEmail").textContent = `${user.displayName} (${user.email})`;
+          document.getElementById(
+            "userEmail"
+          ).textContent = `${user.displayName} (${user.email})`;
         } else {
           // User is not signed in
           document.getElementById("signInButton").style.display = "inline";
           document.getElementById("signOutButton").style.display = "none";
-          document.getElementById("userEmail").textContent = '';
+          document.getElementById("userEmail").textContent = "";
         }
       }
     </script>
