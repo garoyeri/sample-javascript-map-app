@@ -92,12 +92,6 @@
     <!-- the mapcontainer will hold the whole page layout -->
     <div class="mapcontainer">
       <div id="controls">
-        <!--
-          we don't want the form to reload the page, so we pass the `event` here
-          then we use the `preventDefault()` function to stop it from reloading the
-          page.
-          https://stackoverflow.com/questions/16262797/html-form-action-and-onsubmit-issues
-        -->
         <label for="search">Search:</label>
         <input type="text" id="search" />
         <button onclick="searchMap()">Search</button>
